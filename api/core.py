@@ -56,7 +56,7 @@ class Manager(object):
         """
         user_data = {"ASP.NET_SessionId": sid, "UserTokeID": token}
         self._session.cookies.update(user_data)
-        if self.get_stu_info().uid:
+        if self.get_stu_info():
             return True
         return False
 
@@ -72,6 +72,11 @@ class Manager(object):
         resp = self._session.get(self._stu_info_api)
         if resp.status_code != 200:
             print(f"Error, status code: {resp.status_code}")
+            return None
+
+        resp.encoding = "utf-8"
+        if "重复提交" in resp.text:
+            print(f"Limited by server, please wait for 1 min. Maybe you cookies are invalid.")
             return None
 
         stu = StudentInfo()
