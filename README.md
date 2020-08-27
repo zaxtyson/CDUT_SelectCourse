@@ -31,7 +31,7 @@ python3 main.py
 nohup python3 ymq.py &
 ```
 
-# 命令帮助
+## 命令帮助
 
 ```bash
 help          显示本信息
@@ -45,6 +45,12 @@ kb            查看课表
 kb 学号       查看别人的课表 :)
 ```
 
-# 声明
+## Cookies
+
+浏览器登录教务处, 找到 Cookies `ASP.NET_SessionId` 和 `UserTokeID`
+
+登录时 SID 填 `ASP.NET_SessionId` 的值, Token 填 `UserTokeID` 的值
+
+## 声明
 
 本项目仅供学习交流使用, 由此导致的一切问题由用户自行承担
