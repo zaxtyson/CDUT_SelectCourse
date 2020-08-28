@@ -8,7 +8,7 @@
 
 ## CLI
 
-![](https://s1.ax1x.com/2020/08/27/d4pu2q.png)
+![](https://s1.ax1x.com/2020/08/28/do1moF.png)
 
 ## 食用方法
 

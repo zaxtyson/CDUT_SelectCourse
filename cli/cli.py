@@ -88,7 +88,7 @@ class Commander(object):
             is_must = "[√]" if task.task_mode == "01" else "[  ]"
             max_stu = task.max_stu if task.max_stu > 0 else "∞"
             print(
-                f"[{i}]\t{text_align(task.course_name, 25)}\t学分:{task.credit:<6}{task.cur_stu:>3}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}")
+                f"[{i}]\t{text_align(task.course_name, 25)}\t学分:{task.credit:<8}{task.cur_stu:>4}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}")
 
         choose = input("\n[选课按1 | 退课按2]: ") or "1"
         num = int(input("输入课程编号: ") or "0") - 1
@@ -123,7 +123,7 @@ class Commander(object):
             max_stu = course.max_stu if course.max_stu > 0 else "∞"
             remains = course.max_stu - course.cur_stu
             print(
-                f"[{i}]\t{text_align(course.name, 25)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>3}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}")
+                f"[{i}]\t{text_align(course.name, 25)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}")
         return course_list
 
     def exit_courses(self, task: TeachTask):
