@@ -1,4 +1,3 @@
-from time import sleep
 from typing import List, Optional
 
 from api.core import Manager
@@ -91,25 +90,14 @@ class Commander(object):
             print(
                 f"[{i}]\t{text_align(task.course_name, 25)}\t学分:{task.credit:<6}{task.cur_stu:>3}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}")
 
-        choose = input("\n[手动选课按1 | 自动选课按2 | 退课按3]: ") or "1"
+        choose = input("\n[选课按1 | 退课按2]: ") or "1"
         num = int(input("输入课程编号: ") or "0") - 1
         if num < 0 or num >= len(task_list):
             error("编号无效")
             return
         task = task_list[num]
-        if choose == "3":
+        if choose == "2":
             self.exit_courses(task)
-        elif choose == "2":
-            courses_list = self.print_course_list(task)
-            if not courses_list:
-                return
-            num = int(input("输入课程编号: ") or "0") - 1
-            if num < 0 or num >= len(courses_list):
-                error("编号无效")
-                return
-            course = courses_list[num]
-            interval = float(input("> 自动选课时间间隔(单位秒, 不能小于0.2): " or "3"))
-            self.auto_select_course(task, course, interval)
         elif choose == "1":
             courses_list = self.print_course_list(task)
             if not courses_list:
@@ -151,15 +139,3 @@ class Commander(object):
             info(f"选课成功: {course.name} {course.teacher}")
         else:
             error(f"选课失败: {course.name} {course.teacher}")
-
-    def auto_select_course(self, task: TeachTask, course: CourseInfo, interval: float):
-        """一直选课, 直到成功"""
-        if interval < 0.2:
-            info("太快了, 慢点啊兄弟! 时间间隔不能小于 0.2s")
-        while True:
-            is_must = True if task.task_mode == "01" else False
-            if self._mgr.select_course(task.tid, course.cid, is_must):
-                info(f"选课成功: {task.course_name}")
-                break
-            error(f"选课失败, {task.course_name}, {interval}s 后重试...")
-            sleep(interval)

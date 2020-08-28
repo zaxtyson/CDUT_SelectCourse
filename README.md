@@ -24,12 +24,6 @@ pip install requests
 python3 main.py
 ```
 
-- 挂机脚本(貌似没有必要了)
-```
-直接调用 API 即可, 请参考 ymq.py 编写
-上传到服务器上
-nohup python3 ymq.py &
-```
 
 ## 命令帮助
 
