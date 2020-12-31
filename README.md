@@ -16,7 +16,7 @@
 
 - 安装依赖
  ```python
-pip install requests
+pip install requests lxml
  ```
 
 - 运行
