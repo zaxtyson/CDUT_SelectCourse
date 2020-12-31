@@ -28,7 +28,7 @@ python3 main.py
 
 ```bash
 help          显示本信息
-login         使用 Cookie 登录教务处
+login         登录教务处
 logout        清除本地 Cookie
 bye           退出本程序
 me            显示你的个人信息
