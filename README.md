@@ -11,7 +11,13 @@
 
 ## 食用方法
 
-- 请安装 Python3
+> Windows 用户
+
+下载安装即可, [蓝奏云下载](https://zaxtyson.lanzous.com/b0f24xf7c)
+
+> Linux/Mac OS 用户
+>
+- 安装 Python3
 
 - 安装依赖
  ```python
@@ -24,7 +30,7 @@ python3 main.py
 ```
 
 
-## 命令帮助
+## 命令行帮助
 
 ```bash
 help          显示本信息
@@ -48,3 +54,4 @@ kb 学号       查看别人的课表 :)
 
 - 改用用户名+密码方式登录, 登录成功自动保存 Cookie 
 - 命令行加了点颜色, 排版稍微好看点了
+- 打包了 Windows 版
