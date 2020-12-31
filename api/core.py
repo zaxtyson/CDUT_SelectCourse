@@ -1,4 +1,6 @@
+from hashlib import md5
 from random import random
+from time import time
 from typing import List, Optional
 from webbrowser import open_new
 
@@ -13,6 +15,7 @@ class Manager(object):
 
     def __init__(self):
         self._host = "http://202.115.133.173:805"
+        self._login_api = self._host + "/Common/Handler/UserLogin.ashx"
         self._stu_info_api = self._host + "/StudentInfo/StudentsManagement/IdentityCard.aspx"
         self._course_api = self._host + "/SelectCourse/SelectHandler.ashx"
         self._course_table_api = self._host + "/Classroom/ProductionSchedule/StuProductionSchedule.aspx"
@@ -49,16 +52,37 @@ class Manager(object):
         except etree.XPathError:
             return None
 
-    def login(self, sid: str, token: str) -> bool:
+    def login(self, username: str, password: str) -> bool:
+        """使用用户名和密码登录"""
+        username = username.strip()
+        password = password.strip()
+        sign = str(int(time() * 1000))
+        pass_md5 = md5(password.encode("utf-8")).hexdigest()
+        password = md5((username + sign + pass_md5).encode("utf-8")).hexdigest()
+        payload = {"Action": "Login", "userName": username, "pwd": password, "sign": sign}
+        resp = self._session.post(self._login_api, data=payload)
+        if resp.status_code != 200 or resp.text != "0":
+            return False
+        return True
+
+    def get_cookies(self) -> dict:
+        """获取用户 cookie
+        {"sid": sid, "token": token}
+        """
+        sid = self._session.cookies.get("ASP.NET_SessionId")
+        token = self._session.cookies.get("UserTokeID")
+        return {"sid": sid, "token": token}
+
+    def login_by_cookie(self, sid: str, token: str) -> bool:
         """使用 Cookie 登录教务处
         @sid ASP.NET_SessionId 的值
         @token UserTokeID 的值
         """
         user_data = {"ASP.NET_SessionId": sid, "UserTokeID": token}
         self._session.cookies.update(user_data)
-        if self.get_stu_info():
-            return True
-        return False
+        if not self.get_stu_info():
+            return False
+        return True
 
     def show_course_table(self, uid: int):
         """浏览器打开课表

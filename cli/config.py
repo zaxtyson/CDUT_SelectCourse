@@ -17,17 +17,17 @@ class Config(object):
             json.dump(self._dict, f, indent=4)
 
     def set_user_sid(self, sid: str):
-        self._dict["user"]["SessionId"] = sid
+        self._dict["user"]["sid"] = sid
         self._save()
 
     def get_user_sid(self):
-        return self._dict["user"]["SessionId"]
+        return self._dict["user"]["sid"]
 
     def get_user_token(self):
-        return self._dict["user"]["Token"]
+        return self._dict["user"]["token"]
 
     def set_user_token(self, token: str):
-        self._dict["user"]["Token"] = token
+        self._dict["user"]["token"] = token
         self._save()
 
 

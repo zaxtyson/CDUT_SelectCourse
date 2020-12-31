@@ -3,7 +3,7 @@ from typing import List, Optional
 from api.core import Manager
 from api.models import CourseInfo, TeachTask
 from cli.config import GLOBAL_CONFIG
-from cli.utils import text_align, info, error, show_help
+from cli.utils import text_align, info, error, show_help, color_print
 
 
 class Commander(object):
@@ -12,17 +12,27 @@ class Commander(object):
         self._prompt = "> "
 
     def login(self):
+        """登录"""
         sid = GLOBAL_CONFIG.get_user_sid()
         token = GLOBAL_CONFIG.get_user_token()
-        if not sid or not token:
-            sid = input("输入你的 SID: ")
-            token = input("输入 Token: ")
-        if self._mgr.login(sid, token):
+        # 尝试使用 cookies 登录
+        if sid and token and self._mgr.login_by_cookie(sid, token):
             GLOBAL_CONFIG.set_user_sid(sid)
             GLOBAL_CONFIG.set_user_token(token)
-            info("登录成功!")
-        else:
-            error("登录失败!")
+            info("使用 Cookie 登录成功!")
+            return
+
+        # cookies 无效, 用户名密码登录
+        username = input("输入学号: ")
+        password = input("输入密码: ")
+        if username and password and self._mgr.login(username, password):
+            cookies = self._mgr.get_cookies()
+            GLOBAL_CONFIG.set_user_sid(cookies.get("sid"))
+            GLOBAL_CONFIG.set_user_token(cookies.get("token"))
+            info("登录成功, Cookie 已保存!")
+            return
+
+        error("登录失败!")
 
     def logout(self):
         """登出, 清除保存的 Cookie"""
@@ -87,14 +97,21 @@ class Commander(object):
             selected = "[√]" if task.is_selected else "[  ]"
             is_must = "[√]" if task.task_mode == "01" else "[  ]"
             max_stu = task.max_stu if task.max_stu > 0 else "∞"
-            print(
-                f"[{i}]\t{text_align(task.course_name, 25)}\t学分:{task.credit:<8}{task.cur_stu:>4}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}")
+            text = f"[{i}]\t{text_align(task.course_name, 28)}\t学分:{task.credit:<8}{task.cur_stu:>4}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}"
+            if task.is_selected:
+                color_print(text, "green")
+            else:
+                print(text)
 
-        choose = input("\n[选课按1 | 退课按2]: ") or "1"
+        choose = input("\n[选课按1 | 退课按2]: ")
+        if choose not in ["1", "2"]:
+            return
+
         num = int(input("输入课程编号: ") or "0") - 1
         if num < 0 or num >= len(task_list):
             error("编号无效")
             return
+
         task = task_list[num]
         if choose == "2":
             self.exit_courses(task)
@@ -123,7 +140,7 @@ class Commander(object):
             max_stu = course.max_stu if course.max_stu > 0 else "∞"
             remains = course.max_stu - course.cur_stu
             print(
-                f"[{i}]\t{text_align(course.name, 25)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}")
+                f"[{i}]\t{text_align(course.name, 28)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}")
         return course_list
 
     def exit_courses(self, task: TeachTask):

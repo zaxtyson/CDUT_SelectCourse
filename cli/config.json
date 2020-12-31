@@ -1,6 +1,6 @@
 {
     "user": {
-        "SessionId": "",
-        "Token": ""
+        "sid": "",
+        "token": ""
     }
 }
