@@ -6,6 +6,7 @@ from webbrowser import open_new
 
 import requests
 from lxml import etree
+from requests.cookies import CookieConflictError
 
 from api.models import CourseInfo, TeachTask, StudentInfo
 
@@ -70,8 +71,12 @@ class Manager(object):
         {"sid": sid, "token": token}
         """
         sid = self._session.cookies.get("ASP.NET_SessionId")
-        token = self._session.cookies.get("UserTokeID")
-        return {"sid": sid, "token": token}
+        try:
+            token = self._session.cookies.get("UserTokeID")  # token 可能出现多个
+        except CookieConflictError:
+            token = self._session.cookies.get("UserTokeID", domain="202.115.133.173")
+        ret = {"sid": sid, "token": token}
+        return ret
 
     def login_by_cookie(self, sid: str, token: str) -> bool:
         """使用 Cookie 登录教务处

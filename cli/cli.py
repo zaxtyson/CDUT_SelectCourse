@@ -1,3 +1,4 @@
+from time import sleep
 from typing import List, Optional
 
 from api.core import Manager
@@ -103,8 +104,8 @@ class Commander(object):
             else:
                 print(text)
 
-        choose = input("\n[选课按1 | 退课按2]: ")
-        if choose not in ["1", "2"]:
+        choose = input("\n[选课按1 | 挂机捡漏按2 | 退课按3]: ")
+        if choose not in ["1", "2", "3"]:
             return
 
         num = int(input("输入课程编号: ") or "0") - 1
@@ -113,18 +114,25 @@ class Commander(object):
             return
 
         task = task_list[num]
-        if choose == "2":
+        if choose == "3":
             self.exit_courses(task)
-        elif choose == "1":
-            courses_list = self.print_course_list(task)
-            if not courses_list:
-                return
-            num = int(input("输入课程编号: ") or "0") - 1
-            if num < 0 or num >= len(courses_list):
-                error("编号无效")
-                return
-            course = courses_list[num]
+            return
+
+        courses_list = self.print_course_list(task)
+        if not courses_list:
+            return
+
+        num = int(input("选择老师: ") or "0") - 1
+        if num < 0 or num >= len(courses_list):
+            error("编号无效")
+            return
+
+        course = courses_list[num]
+        if choose == "1":
             self.select_course(task, course)
+        elif choose == "2":
+            interval = float(input("挂机抢课时间间隔(秒): ") or "3")
+            self.auto_select_course(task, course, interval)
         else:
             error("输入有误!")
 
@@ -139,8 +147,11 @@ class Commander(object):
             selected = "[√]" if course.is_selected else "[  ]"
             max_stu = course.max_stu if course.max_stu > 0 else "∞"
             remains = course.max_stu - course.cur_stu
-            print(
-                f"[{i}]\t{text_align(course.name, 28)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}")
+            text = f"[{i}]\t{text_align(course.name, 28)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}"
+            if course.is_selected:
+                color_print(text, "green")
+            else:
+                print(text)
         return course_list
 
     def exit_courses(self, task: TeachTask):
@@ -156,3 +167,17 @@ class Commander(object):
             info(f"选课成功: {course.name} {course.teacher}")
         else:
             error(f"选课失败: {course.name} {course.teacher}")
+
+    def auto_select_course(self, task: TeachTask, course: CourseInfo, interval: float):
+        """一直选课, 直到成功"""
+        if interval < 1:
+            info("太快了, 慢点啊兄弟! 时间间隔不能小于 1s")
+        count = 1
+        while True:
+            is_must = True if task.task_mode == "01" else False
+            if self._mgr.select_course(task.tid, course.cid, is_must):
+                info(f"选课成功: {task.course_name}")
+                break
+            error(f"[{count}] 选课失败: {course.name} - {course.teacher}, {interval}s 后重试...")
+            count += 1
+            sleep(interval)
