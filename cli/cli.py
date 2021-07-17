@@ -1,16 +1,26 @@
 from time import sleep
-from typing import List, Optional
+from typing import List, Optional, TypeVar
 
 from api.core import Manager
-from api.models import CourseInfo, TeachTask
+from api.models import Course, TeachTask
 from cli.config import GLOBAL_CONFIG
 from cli.utils import text_align, info, error, show_help, color_print
 
 
-class Commander(object):
+class Commander:
     def __init__(self):
+        self._stu_info = None
         self._mgr = Manager()
         self._prompt = "> "
+
+    def login_required(func):
+        def inner(self, *args, **kwargs):
+            if not self._stu_info:
+                error("请先登录!")
+                return
+            return func(self, *args, **kwargs)
+
+        return inner
 
     def login(self):
         """登录"""
@@ -21,6 +31,7 @@ class Commander(object):
             GLOBAL_CONFIG.set_user_sid(sid)
             GLOBAL_CONFIG.set_user_token(token)
             info("使用 Cookie 登录成功!")
+            self._stu_info = self._mgr.get_stu_info()
             return
 
         # cookies 无效, 用户名密码登录
@@ -31,6 +42,7 @@ class Commander(object):
             GLOBAL_CONFIG.set_user_sid(cookies.get("sid"))
             GLOBAL_CONFIG.set_user_token(cookies.get("token"))
             info("登录成功, Cookie 已保存!")
+            self._stu_info = self._mgr.get_stu_info()
             return
 
         error("登录失败!")
@@ -39,6 +51,8 @@ class Commander(object):
         """登出, 清除保存的 Cookie"""
         GLOBAL_CONFIG.set_user_sid("")
         GLOBAL_CONFIG.set_user_token("")
+        self._stu_info = None
+        self._mgr.logout()
         info("已清除本地 Cookie")
 
     def run(self):
@@ -63,121 +77,148 @@ class Commander(object):
         elif cmd == "me":
             self.print_stu_info()
         elif cmd == "xx":  # 选修
-            self.start_select_course(False)
+            self.select_task(False)
         elif cmd == "bx":  # 必修
-            self.start_select_course(True)
+            self.select_task(True)
+        elif cmd == "tk":  # 退课
+            self.exit_courses()
         elif cmd == "kb":  # 课表
-            self.print_course_table(arg)
+            self.print_course_table()
         elif cmd == "bye":
             exit()
+        else:
+            print("输入 help 查看命令帮助")
 
-    def print_course_table(self, uid_str: str):
+    def print_course_table(self):
         """浏览器打开课表"""
-        uid = self._mgr.get_stu_info().uid if not uid_str else int(uid_str)
-        self._mgr.show_course_table(uid)
+        student_id = input("输入学号(默认当前登录用户): ") or self._stu_info.student_id
+        term_id = input("输入学期号(如 202101/02 表示 2021 年上/下学期): ") or ""
+        if not student_id or not term_id.isdigit():
+            print(f"输入有误!")
+            return
+        self._mgr.show_course_table(student_id, int(term_id))
 
+    @login_required
     def print_stu_info(self):
         """打印学生信息"""
-        stu = self._mgr.get_stu_info()
+        stu_info = self._stu_info
         print("*" * 70)
-        print(f"姓名: {stu.name}\t\t性别: {stu.sex}")
-        print(f"学号: {stu.uid}\t学制: {stu.years}")
-        print(f"生日: {stu.birthday}\t入学时间: {stu.enroll_time}")
-        print(f"学院: {stu.depart_name}")
-        print(f"专业: {stu.major_name}")
+        print(f"姓名: {stu_info.name}\t\t\t性别: {stu_info.sex}")
+        print(f"学号: {stu_info.student_id}\t\t学制: {stu_info.years}")
+        print(f"生日: {stu_info.birthday}\t\t入学时间: {stu_info.enroll_time}")
+        print(f"学院: {stu_info.depart_name}")
+        print(f"专业: {stu_info.major_name}")
         print("*" * 70)
 
-    def start_select_course(self, is_must=True):
+    T = TypeVar("T")
+
+    @staticmethod
+    def _ask_for_choice(lst: List[T]) -> Optional[T]:
+        try:
+            choose = input("\n选择序号: ")
+        except KeyboardInterrupt:
+            return
+        if not choose or not choose.isdigit():
+            error("序号有误")
+            return
+        choose = int(choose) - 1
+        if choose < 0 or choose >= len(lst):
+            error("序号有误")
+            return
+        return lst[choose]
+
+    @login_required
+    def select_task(self, is_must):
         """打印课程信息列表"""
-        task_list = self._mgr.get_teach_task_list(is_must)
-        if not task_list:
-            error("获取信息失败, 请重试!")
-            return None
+        tasks = self._mgr.get_teach_tasks(is_must)
+        if not tasks:
+            error("获取信息失败, 请检查网络连接并重试!")
+            return
 
-        for i, task in enumerate(task_list, 1):
+        for i, task in enumerate(tasks, 1):
             selected = "[√]" if task.is_selected else "[  ]"
-            is_must = "[√]" if task.task_mode == "01" else "[  ]"
-            max_stu = task.max_stu if task.max_stu > 0 else "∞"
-            text = f"[{i}]\t{text_align(task.course_name, 28)}\t学分:{task.credit:<8}{task.cur_stu:>4}/{max_stu:<4}\t必修: {is_must}  已选: {selected}  TID: {task.tid}"
+            max_stu = task.max_stu_num if task.max_stu_num > 0 else "∞"
+            text = f"[{i}]\t{text_align(task.course_name, 28)}\t学分: {task.credit:<8}{task.cur_stu_num:>4}/{max_stu:<4} {task.task_type_value}  {task.choose_status_value}  已选: {selected}"
             if task.is_selected:
                 color_print(text, "green")
             else:
                 print(text)
 
-        choose = input("\n[选课按1 | 挂机捡漏按2 | 退课按3]: ")
-        if choose not in ["1", "2", "3"]:
+        task = self._ask_for_choice(tasks)
+        if not task:
             return
-
-        num = int(input("输入课程编号: ") or "0") - 1
-        if num < 0 or num >= len(task_list):
-            error("编号无效")
-            return
-
-        task = task_list[num]
-        if choose == "3":
-            self.exit_courses(task)
-            return
-
-        courses_list = self.print_course_list(task)
+        courses_list = self.print_task_courses(task)
         if not courses_list:
             return
 
-        num = int(input("选择老师: ") or "0") - 1
-        if num < 0 or num >= len(courses_list):
-            error("编号无效")
+        task_nums = input("\n选择课程编号(多个编号用空格分开): ") or ""
+        if not task_nums:
+            info("放弃选课")
+            return
+        task_nums = [int(n) - 1 for n in task_nums.split()]
+        for n in task_nums:
+            if n < 0 or n >= len(courses_list):
+                error("包含无效课程编号, 请检查")
+                return
+        courses = [courses_list[n] for n in task_nums]
+        if self._mgr.select_courses(courses):
+            info("选课成功!")
             return
 
-        course = courses_list[num]
-        if choose == "1":
-            self.select_course(task, course)
-        elif choose == "2":
+        error("选课失败!")
+        choose = input("是否需要挂机抢课(y/n): ") or "n"
+        if choose.lower() == "y":
             interval = float(input("挂机抢课时间间隔(秒): ") or "3")
-            self.auto_select_course(task, course, interval)
-        else:
-            error("输入有误!")
+            self.auto_select_course(courses, interval)
 
-    def print_course_list(self, task: TeachTask) -> Optional[List[CourseInfo]]:
-        is_must = True if task.task_mode == "01" else False
-        course_list = self._mgr.get_course_list(task.tid, is_must)
+    def print_task_courses(self, task: TeachTask) -> Optional[List[Course]]:
+        course_list = self._mgr.get_task_courses(task)
         if not course_list:
             error("获取课程信息失败")
             return None
 
         for i, course in enumerate(course_list, 1):
             selected = "[√]" if course.is_selected else "[  ]"
-            max_stu = course.max_stu if course.max_stu > 0 else "∞"
-            remains = course.max_stu - course.cur_stu
-            text = f"[{i}]\t{text_align(course.name, 28)}\t{course.teacher:4}\t{course.tech_cls:<4} {course.cur_stu:>4}/{max_stu:<4}\t剩余: {remains:<4} 已选: {selected}  CID: {course.cid}"
+            max_stu = course.max_stu_num if course.max_stu_num > 0 else "∞"
+            remains = course.max_stu_num - course.cur_stu_num
+            text = f"[{i}] {course.course_type_value}\t{course.tech_class:<4} {course.cur_stu_num:>4}/{max_stu:<4}\t剩余: {remains:>4}\t已选: {selected}\t{course.teachers}\t备注: {course.brief}"
             if course.is_selected:
                 color_print(text, "green")
             else:
                 print(text)
         return course_list
 
-    def exit_courses(self, task: TeachTask):
-        is_must = True if task.task_mode == "01" else False
-        if self._mgr.exit_course(task.tid, is_must):
-            info(f"退课成功: {task.course_name}")
-        else:
-            error(f"退课失败: {task.course_name}")
+    @login_required
+    def exit_courses(self):
+        """
+        退课操作
+        """
+        selected_tasks = self._mgr.get_selected_task()
+        for i, task in enumerate(selected_tasks, 1):
+            text = f"[{i}] {text_align(task.course_name, 28)}\t{task.task_type_value}\t学分: {task.credit:<3}\t{task.choose_status_value}\t{task.status_value}"
+            color_print(text, "green")
+            print(f"\t{task.t_class_info} \t {task.s_class_info}\n")
 
-    def select_course(self, task: TeachTask, course: CourseInfo):
-        is_must = True if task.task_mode == "01" else False
-        if self._mgr.select_course(task.tid, course.cid, is_must):
-            info(f"选课成功: {course.name} {course.teacher}")
+        task = self._ask_for_choice(selected_tasks)
+        if not task:
+            return
+        if self._mgr.exit_course(task):
+            info(f"{task.course_name}: 退课成功!")
         else:
-            error(f"选课失败: {course.name} {course.teacher}")
+            error(f"{task.course_name}: 退课失败，该课程选课已关闭或已结束")
 
-    def auto_select_course(self, task: TeachTask, course: CourseInfo, interval: float):
+    def auto_select_course(self, courses: List[Course], interval: float):
         """一直选课, 直到成功"""
         if interval < 1:
             info("太快了, 慢点啊兄弟! 时间间隔不能小于 1s")
         count = 1
-        while True:
-            is_must = True if task.task_mode == "01" else False
-            if self._mgr.select_course(task.tid, course.cid, is_must):
-                info(f"选课成功: {task.course_name}")
-                break
-            error(f"[{count}] 选课失败: {course.name} - {course.teacher}, {interval}s 后重试...")
-            count += 1
-            sleep(interval)
+        try:
+            while True:
+                if self._mgr.select_courses(courses):
+                    info("选课成功!")
+                    break
+                error(f"{count} 选课失败, {interval}s 后重试...")
+                count += 1
+                sleep(interval)
+        except KeyboardInterrupt:
+            pass
