@@ -14,7 +14,7 @@
 
 > Windows 用户
 
-下载安装即可, [蓝奏云下载](https://zaxtyson.lanzous.com/b0f24xf7c)
+下载安装即可, [蓝奏云下载](https://zaxtyson.lanzoux.com/b0f24xf7c)
 
 > Linux/Mac OS 用户
 >
@@ -56,6 +56,7 @@ python3 main.py
 - 修复网页数据不规范导致的崩溃问题
 - 修复选课时遗漏实验课的问题
 - 显示更多课程相关的信息
+- 查看课表时可以指定年份和学期(以及查看别人的课表)
 - 交互逻辑更加符合直觉
 
 ### 2021/01/01
