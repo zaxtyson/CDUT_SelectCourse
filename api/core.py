@@ -10,7 +10,7 @@ import requests
 from lxml import etree
 from requests.cookies import CookieConflictError
 
-from api.models import Course, TeachTask, StudentInfo, SelectedTask
+from api.models import Course, TeachTask, StudentInfo, SelectedTask, GpaInfo
 
 
 class Manager(object):
@@ -22,6 +22,7 @@ class Manager(object):
         self._course_api = self._host + "/SelectCourse/SelectHandler.ashx"
         self._course_table_api = self._host + "/Classroom/ProductionSchedule/StuProductionSchedule.aspx"
         self._selected_task_api = self._host + "/SelectCourse/selectcourse.aspx"
+        self._score_table_api = self._host + "/rpt.aspx?rid=stucjd"
         self._session = requests.Session()
         self._headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4223.0 Safari/537.36 Edg/86.0.608.2",
@@ -301,4 +302,38 @@ class Manager(object):
             t.o_class_id = task["OthClassId"]
             # 其它 null 值信息忽略
             ret.append(t)
+        return ret
+
+    def get_gpa_info(self) -> GpaInfo:
+        """
+        获取绩点相关信息
+        """
+        ret = GpaInfo()
+        resp = self._session.get(self._score_table_api)
+        if resp.status_code != 200:
+            return ret
+        next_url = re.search(r"frRequestServer\('(/FastReport.+?)'\)", resp.text)
+        if not next_url:
+            return ret
+        next_url = self._host + next_url.group(1) + "&next=10"  # 防止出现多页点情况， 直接到最后一页
+        while True:
+            resp = self._session.get(next_url)
+            if resp.status_code != 200:
+                return ret
+            page_info = re.search(r"第(\d+?)页共(\d+?)页", resp.text)
+            if not page_info:
+                return ret
+            if page_info.group(1) == page_info.group(2):
+                break  # 要请求 n 次， 直接 next=n 并不能拿到第 n 页第数据
+
+        # 现在拿到最后一页了
+        info = re.search(r'课程数</td>.+?>(\d+?)</td>.+?平均成绩</td>.+?>([\d.]+?)'
+                         r'</td>.+?总学分</td>.+?>([\d.]+?)</td>.+?平均学分绩点</td>.+?>([\d.]+?)</td>',
+                         resp.text, re.DOTALL)
+        if not info:
+            return ret
+        ret.course_num = info.group(1)
+        ret.avg_score = info.group(2)
+        ret.total_credit = info.group(3)
+        ret.gpa = info.group(4)
         return ret

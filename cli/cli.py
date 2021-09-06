@@ -2,14 +2,15 @@ from time import sleep
 from typing import List, Optional, TypeVar
 
 from api.core import Manager
-from api.models import Course, TeachTask
+from api.models import Course, TeachTask, GpaInfo, StudentInfo
 from cli.config import GLOBAL_CONFIG
 from cli.utils import text_align, info, error, show_help, color_print
 
 
 class Commander:
     def __init__(self):
-        self._stu_info = None
+        self._stu_info = StudentInfo()
+        self._gpa_info = GpaInfo()
         self._mgr = Manager()
         self._prompt = "> "
 
@@ -32,6 +33,7 @@ class Commander:
             GLOBAL_CONFIG.set_user_token(token)
             info("使用 Cookie 登录成功!")
             self._stu_info = self._mgr.get_stu_info()
+            self._gpa_info = self._mgr.get_gpa_info()
             return
 
         # cookies 无效, 用户名密码登录
@@ -43,6 +45,7 @@ class Commander:
             GLOBAL_CONFIG.set_user_token(cookies.get("token"))
             info("登录成功, Cookie 已保存!")
             self._stu_info = self._mgr.get_stu_info()
+            self._gpa_info = self._mgr.get_gpa_info()
             return
 
         error("登录失败!")
@@ -101,13 +104,16 @@ class Commander:
     @login_required
     def print_stu_info(self):
         """打印学生信息"""
-        stu_info = self._stu_info
+        stu = self._stu_info
+        gpa = self._gpa_info
         print("*" * 70)
-        print(f"姓名: {stu_info.name}\t\t\t性别: {stu_info.sex}")
-        print(f"学号: {stu_info.student_id}\t\t学制: {stu_info.years}")
-        print(f"生日: {stu_info.birthday}\t\t入学时间: {stu_info.enroll_time}")
-        print(f"学院: {stu_info.depart_name}")
-        print(f"专业: {stu_info.major_name}")
+        print(f"姓名: {stu.name}\t\t\t性别: {stu.sex}")
+        print(f"学号: {stu.student_id}\t\t学制: {stu.years}")
+        print(f"生日: {stu.birthday}\t\t入学时间: {stu.enroll_time}")
+        print(f"学院: {stu.depart_name}")
+        print(f"专业: {stu.major_name}")
+        print(f"已修课程: {gpa.course_num}\t\t\t已修学分: {gpa.total_credit}")
+        print(f"平均成绩: {gpa.avg_score}\t\t\t平均绩点: {gpa.gpa}")
         print("*" * 70)
 
     T = TypeVar("T")

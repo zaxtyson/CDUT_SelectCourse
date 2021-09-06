@@ -136,3 +136,15 @@ class Course:
 
     def __str__(self) -> str:
         return str(self.__dict__)
+
+
+class GpaInfo:
+
+    def __init__(self):
+        self.course_num = 0  # 课程数
+        self.avg_score = 0  # 平均成绩
+        self.total_credit = 0  # 已修学分
+        self.gpa = 0  # 平均学分绩点
+
+    def __str__(self) -> str:
+        return str(self.__dict__)
